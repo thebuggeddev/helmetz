@@ -255,54 +255,68 @@ function App() {
     }
   }, [activeIndex])
 
-  const switchHelmet = (direction) => {
+  const switchHelmet = (direction, options = {}) => {
     if (isAnimating) {
       return
     }
 
+    const { fromDrag = false, dragDistance = 0 } = options
     const nextIndex = (activeIndex + direction + helmets.length) % helmets.length
     const nextHelmet = helmets[nextIndex]
+    const dragFactor = Math.min(Math.abs(dragDistance) / 260, 1)
+    const exitDuration = fromDrag ? 0.2 : 0.28
+    const exitDistance = (fromDrag ? 210 : 250) + dragFactor * 110
 
     directionRef.current = direction
     setIsAnimating(true)
     timelineRef.current?.kill()
 
+    let switched = false
+    const commitSwitch = () => {
+      if (switched) {
+        return
+      }
+      switched = true
+      setActiveIndex(nextIndex)
+    }
+
     const tl = gsap.timeline({
       defaults: { ease: 'power3.in' },
-      onComplete: () => {
-        setActiveIndex(nextIndex)
-      },
+      onComplete: commitSwitch,
     })
 
     tl.to(
       helmetRef.current,
       {
-        autoAlpha: 0,
-        x: -direction * 250,
-        y: -14,
-        scale: 0.8,
-        rotate: -direction * 16,
-        duration: 0.52,
+        autoAlpha: 0.22,
+        x: -direction * exitDistance,
+        y: -9,
+        scale: 0.88,
+        rotate: -direction * 11,
+        duration: exitDuration,
+        ease: 'power4.in',
       },
       0,
     )
       .to(
         [copyRef.current, footerRef.current],
         {
-          autoAlpha: 0,
+          autoAlpha: 0.36,
           x: -direction * 48,
-          y: -6,
-          duration: 0.34,
+          y: -4,
+          duration: exitDuration * 0.9,
           stagger: 0.05,
+          ease: 'power4.in',
         },
         0.02,
       )
       .to(
         [menuRef.current, dotsRef.current],
         {
-          autoAlpha: 0,
-          x: -direction * 16,
-          duration: 0.28,
+          autoAlpha: 0.28,
+          x: -direction * 14,
+          duration: exitDuration * 0.8,
+          ease: 'power4.in',
         },
         0,
       )
@@ -314,10 +328,10 @@ function App() {
           '--card-end': nextHelmet.cardEnd,
           '--helmet-halo': nextHelmet.halo,
           '--helmet-accent': nextHelmet.accent,
-          rotate: direction * 0.75,
-          scale: 0.982,
-          duration: 0.62,
-          ease: 'sine.inOut',
+          rotate: direction * 0.44,
+          scale: 0.988,
+          duration: exitDuration + 0.1,
+          ease: 'sine.in',
         },
         0,
       )
@@ -326,8 +340,8 @@ function App() {
         {
           '--stage-glow-a': nextHelmet.stageGlowA,
           '--stage-glow-b': nextHelmet.stageGlowB,
-          duration: 0.62,
-          ease: 'sine.inOut',
+          duration: exitDuration + 0.1,
+          ease: 'sine.in',
         },
         0,
       )
@@ -337,18 +351,28 @@ function App() {
           x: 0,
           y: 0,
           rotate: 0,
-          duration: 0.35,
-          ease: 'power2.out',
+          duration: exitDuration,
+          ease: 'power2.inOut',
         },
         0,
       )
       .fromTo(
         washRef.current,
         { autoAlpha: 0, scale: 0.65 },
-        { autoAlpha: 0.78, scale: 1.85, duration: 0.44, ease: 'sine.out' },
+        {
+          autoAlpha: 0.72,
+          scale: 1.68,
+          duration: exitDuration + 0.06,
+          ease: 'sine.out',
+        },
         0,
       )
-      .to(washRef.current, { autoAlpha: 0, duration: 0.32, ease: 'sine.in' }, 0.29)
+      .to(
+        washRef.current,
+        { autoAlpha: 0, duration: exitDuration * 0.82, ease: 'sine.in' },
+        exitDuration * 0.45,
+      )
+      .add(commitSwitch, exitDuration * 0.72)
 
     timelineRef.current = tl
   }
@@ -480,7 +504,10 @@ function App() {
       Math.abs(dragState.deltaX) > Math.abs(dragState.deltaY) * 1.22
 
     if (shouldSwitch) {
-      switchHelmet(dragState.deltaX < 0 ? 1 : -1)
+      switchHelmet(dragState.deltaX < 0 ? 1 : -1, {
+        fromDrag: true,
+        dragDistance: dragState.deltaX,
+      })
       return
     }
 

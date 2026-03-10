@@ -13,12 +13,25 @@
   height: calc(100dvh - clamp(1.1rem, 2.8vw, 2.2rem));
   width: 100%;
   overflow: hidden;
+  contain: layout paint;
   touch-action: pan-y;
   user-select: none;
   border-radius: clamp(1.15rem, 2.2vw, 2rem);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    radial-gradient(circle at 50% 47%, var(--helmet-halo), transparent 40%),
+    radial-gradient(
+      circle at 50% 49%,
+      rgba(255, 255, 255, 0.035) 0%,
+      var(--helmet-halo) 10%,
+      rgba(255, 255, 255, 0.01) 22%,
+      transparent 36%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      rgba(25, 13, 48, 0.2) 0%,
+      rgba(25, 13, 48, 0.09) 26%,
+      transparent 46%
+    ),
     linear-gradient(
       148deg,
       var(--card-start) 0%,
@@ -33,6 +46,7 @@
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
   opacity: 0.26;
   background-image:
@@ -55,6 +69,36 @@
     260px 260px,
     240px 240px,
     320px 320px;
+}
+
+.hero-card::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: min(58vw, 860px);
+  aspect-ratio: 1;
+  transform: translate3d(-50%, -50%, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+  opacity: 0.32;
+  mix-blend-mode: normal;
+  background:
+    radial-gradient(
+      circle,
+      var(--helmet-halo) 0%,
+      rgba(255, 255, 255, 0.02) 18%,
+      transparent 46%
+    ),
+    radial-gradient(
+      ellipse at 58% 42%,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0.008) 28%,
+      transparent 50%
+    );
+  filter: none;
 }
 
 .card-header {
@@ -321,7 +365,9 @@
   aspect-ratio: 1;
   border-radius: 999px;
   pointer-events: none;
-  transform: translate(-50%, -50%);
+  transform: translate3d(-50%, -50%, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   opacity: 0;
   background: radial-gradient(
     circle,
@@ -329,7 +375,7 @@
     rgba(255, 245, 255, 0.04) 45%,
     transparent 68%
   );
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
 }
 
 .card-controls {
@@ -477,6 +523,11 @@
 }
 
 @media (max-width: 1180px) {
+  .hero-card::after {
+    width: min(70vw, 700px);
+    opacity: 0.3;
+  }
+
   .card-header {
     grid-template-columns: auto 1fr auto;
   }
@@ -541,6 +592,11 @@
 }
 
 @media (max-width: 760px) {
+  .hero-card::after {
+    width: min(92vw, 520px);
+    opacity: 0.24;
+  }
+
   .hero-stage {
     padding: 0.42rem;
   }
@@ -635,6 +691,11 @@
 }
 
 @media (max-width: 560px) {
+  .hero-card::after {
+    width: min(112vw, 460px);
+    opacity: 0.2;
+  }
+
   .hero-stage {
     padding: 0.28rem;
   }
