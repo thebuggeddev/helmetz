@@ -102,7 +102,6 @@ const helmets = [
 
 function App() {
   const [activeIndex, setActiveIndex] = useState(0)
-  const [isAnimating, setIsAnimating] = useState(true)
   const activeHelmet = helmets[activeIndex]
 
   const stageRef = useRef(null)
@@ -117,6 +116,15 @@ function App() {
   const washRef = useRef(null)
   const directionRef = useRef(1)
   const timelineRef = useRef(null)
+  const activeIndexRef = useRef(0)
+  const queuedSwitchRef = useRef(0)
+  const isTransitioningRef = useRef(true)
+  const transitionPhaseRef = useRef('enter')
+  const idleMaskTlRef = useRef(null)
+  const idleRestartCallRef = useRef(null)
+  const quickFnsRef = useRef(null)
+  const readyIndexSetRef = useRef(new Set())
+  const enterRunRef = useRef(0)
   const dragStateRef = useRef({
     active: false,
     pointerId: null,
@@ -127,22 +135,75 @@ function App() {
   })
 
   useLayoutEffect(() => {
-    const perfTargets = [
-      stageRef.current,
-      cardRef.current,
-      parallaxRef.current,
-      helmetRef.current,
-      copyRef.current,
-      footerRef.current,
-      menuRef.current,
-      dotsRef.current,
-      washRef.current,
-    ].filter(Boolean)
+    const maskTargets = [helmetRef.current, parallaxRef.current, washRef.current].filter(Boolean)
+    if (maskTargets.length > 0) {
+      gsap.set(maskTargets, { transformOrigin: '50% 50%' })
+    }
 
-    if (perfTargets.length > 0) {
-      gsap.set(perfTargets, { force3D: true })
+    if (
+      helmetRef.current &&
+      copyRef.current &&
+      footerRef.current &&
+      menuRef.current &&
+      dotsRef.current &&
+      cardRef.current &&
+      washRef.current &&
+      parallaxRef.current
+    ) {
+      quickFnsRef.current = {
+        helmetX: gsap.quickTo(helmetRef.current, 'x', { duration: 0.14, ease: 'power2.out' }),
+        helmetRotate: gsap.quickTo(helmetRef.current, 'rotate', {
+          duration: 0.14,
+          ease: 'power2.out',
+        }),
+        helmetScale: gsap.quickTo(helmetRef.current, 'scale', {
+          duration: 0.14,
+          ease: 'power2.out',
+        }),
+        copyX: gsap.quickTo(copyRef.current, 'x', { duration: 0.14, ease: 'power2.out' }),
+        footerX: gsap.quickTo(footerRef.current, 'x', { duration: 0.14, ease: 'power2.out' }),
+        menuX: gsap.quickTo(menuRef.current, 'x', { duration: 0.14, ease: 'power2.out' }),
+        dotsX: gsap.quickTo(dotsRef.current, 'x', { duration: 0.14, ease: 'power2.out' }),
+        cardRotate: gsap.quickTo(cardRef.current, 'rotate', { duration: 0.14, ease: 'power2.out' }),
+        cardScale: gsap.quickTo(cardRef.current, 'scale', { duration: 0.14, ease: 'power2.out' }),
+        washAlpha: gsap.quickTo(washRef.current, 'autoAlpha', {
+          duration: 0.14,
+          ease: 'power2.out',
+        }),
+        washScale: gsap.quickTo(washRef.current, 'scale', { duration: 0.14, ease: 'power2.out' }),
+        parallaxX: gsap.quickTo(parallaxRef.current, 'x', { duration: 0.32, ease: 'power2.out' }),
+        parallaxY: gsap.quickTo(parallaxRef.current, 'y', { duration: 0.32, ease: 'power2.out' }),
+        parallaxRotate: gsap.quickTo(parallaxRef.current, 'rotate', {
+          duration: 0.32,
+          ease: 'power2.out',
+        }),
+      }
     }
   }, [])
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex
+  }, [activeIndex])
+
+  const decodeImage = (image) => {
+    if (typeof image.decode === 'function') {
+      return image.decode().catch(() => {})
+    }
+
+    if (image.complete) {
+      return Promise.resolve()
+    }
+
+    return new Promise((resolve) => {
+      const onDone = () => {
+        image.removeEventListener('load', onDone)
+        image.removeEventListener('error', onDone)
+        resolve()
+      }
+      image.addEventListener('load', onDone)
+      image.addEventListener('error', onDone)
+    })
+  }
 
   useEffect(() => {
     const preload = helmets.map((helmet) => {
@@ -150,6 +211,11 @@ function App() {
       image.decoding = 'async'
       image.src = helmet.image
       return image
+    })
+    preload.forEach((image, index) => {
+      decodeImage(image).finally(() => {
+        readyIndexSetRef.current.add(index)
+      })
     })
 
     return () => {
@@ -159,7 +225,146 @@ function App() {
     }
   }, [])
 
-  const resetDragVisuals = (duration = 0.32) => {
+  useEffect(() => {
+    return () => {
+      enterRunRef.current += 1
+      timelineRef.current?.kill()
+      idleMaskTlRef.current?.kill()
+      idleRestartCallRef.current?.kill()
+      quickFnsRef.current = null
+    }
+  }, [])
+
+  const killMotionTweens = () => {
+    const targets = [
+      helmetRef.current,
+      copyRef.current,
+      footerRef.current,
+      menuRef.current,
+      dotsRef.current,
+      cardRef.current,
+      washRef.current,
+      parallaxRef.current,
+    ].filter(Boolean)
+    if (targets.length > 0) {
+      gsap.killTweensOf(targets)
+    }
+  }
+
+  const clearIdleRestart = () => {
+    idleRestartCallRef.current?.kill()
+    idleRestartCallRef.current = null
+  }
+
+  const ensureHelmetReady = (index) => {
+    if (readyIndexSetRef.current.has(index)) {
+      return Promise.resolve()
+    }
+
+    return new Promise((resolve) => {
+      const image = new Image()
+      image.decoding = 'async'
+      image.src = helmets[index].image
+      decodeImage(image).finally(() => {
+        readyIndexSetRef.current.add(index)
+        resolve()
+      })
+    })
+  }
+
+  const setBaseVisualState = () => {
+    if (helmetRef.current) {
+      gsap.set(helmetRef.current, {
+        x: 0,
+        y: 0,
+        rotate: 0,
+        scale: 1,
+        autoAlpha: 1,
+        force3D: false,
+      })
+    }
+
+    const copyTargets = [copyRef.current, footerRef.current, menuRef.current, dotsRef.current].filter(
+      Boolean,
+    )
+    if (copyTargets.length > 0) {
+      gsap.set(copyTargets, { x: 0, y: 0, autoAlpha: 1, force3D: false })
+    }
+
+    if (cardRef.current) {
+      gsap.set(cardRef.current, { rotate: 0, scale: 1, force3D: false })
+    }
+    if (washRef.current) {
+      gsap.set(washRef.current, { autoAlpha: 0, scale: 1 })
+    }
+    if (parallaxRef.current) {
+      gsap.set(parallaxRef.current, { x: 0, y: 0, rotate: 0, force3D: false })
+    }
+  }
+
+  const stopIdleMaskAnimation = (settle = true) => {
+    clearIdleRestart()
+    idleMaskTlRef.current?.kill()
+    idleMaskTlRef.current = null
+
+    if (!settle || !helmetRef.current) {
+      return
+    }
+
+    gsap.to(helmetRef.current, {
+      y: 0,
+      rotate: 0,
+      scale: 1,
+      duration: 0.28,
+      ease: 'power2.out',
+      overwrite: true,
+    })
+  }
+
+  const startIdleMaskAnimation = (delay = 0.18) => {
+    clearIdleRestart()
+
+    if (!helmetRef.current || isTransitioningRef.current || dragStateRef.current.active) {
+      return
+    }
+
+    idleRestartCallRef.current = gsap.delayedCall(delay, () => {
+      if (!helmetRef.current || isTransitioningRef.current || dragStateRef.current.active) {
+        return
+      }
+
+      idleMaskTlRef.current?.kill()
+      idleMaskTlRef.current = gsap
+        .timeline({
+          repeat: -1,
+          yoyo: true,
+          defaults: { ease: 'sine.inOut' },
+        })
+        .to(
+          helmetRef.current,
+          {
+            y: -7,
+            rotate: 0.95,
+            scale: 1.014,
+            duration: 2.3,
+          },
+          0,
+        )
+        .to(
+          washRef.current,
+          {
+            autoAlpha: 0.18,
+            scale: 1.06,
+            duration: 2.3,
+          },
+          0,
+        )
+
+      idleRestartCallRef.current = null
+    })
+  }
+
+  const resetDragVisuals = (duration = 0.32, resumeIdle = false) => {
     gsap.to(helmetRef.current, {
       x: 0,
       y: 0,
@@ -197,32 +402,83 @@ function App() {
       ease: 'power3.out',
       overwrite: true,
     })
+
+    if (resumeIdle) {
+      startIdleMaskAnimation(Math.max(0.08, duration * 0.45))
+    }
   }
 
-  const playEnterAnimation = (direction) => {
+  const processSwitchQueue = (seedOptions = {}) => {
+    if (isTransitioningRef.current || queuedSwitchRef.current === 0) {
+      return
+    }
+
+    const direction = queuedSwitchRef.current
+    queuedSwitchRef.current = 0
+    runExitTransition(direction, seedOptions)
+  }
+
+  const requestRapidAdvance = () => {
+    const tl = timelineRef.current
+    if (!tl) {
+      return
+    }
+
+    const currentScale = typeof tl.timeScale === 'function' ? tl.timeScale() : 1
+    if (transitionPhaseRef.current === 'enter') {
+      if (tl.progress() < 0.68) {
+        tl.progress(0.68, false)
+      }
+      if (tl.progress() > 0.9) {
+        tl.progress(1, false)
+        return
+      }
+      tl.timeScale(Math.max(currentScale, 2.1))
+      return
+    }
+
+    if (tl.progress() > 0.82) {
+      tl.progress(1, false)
+      return
+    }
+    tl.timeScale(Math.max(currentScale, 2.2))
+  }
+
+  const playEnterAnimation = (direction, onDone) => {
+    const rapidMode = queuedSwitchRef.current !== 0
+    const cardInDuration = rapidMode ? 0.42 : 0.72
+    const helmetInDuration = rapidMode ? 0.5 : 0.86
+    const copyInDuration = rapidMode ? 0.42 : 0.66
+
+    transitionPhaseRef.current = 'enter'
+    killMotionTweens()
     timelineRef.current?.kill()
+    setBaseVisualState()
 
     const tl = gsap.timeline({
-      defaults: { ease: 'power3.out', overwrite: 'auto' },
+      defaults: { ease: 'power3.out', overwrite: 'auto', lazy: false, force3D: false },
       onComplete: () => {
-        setIsAnimating(false)
+        isTransitioningRef.current = false
+        transitionPhaseRef.current = 'idle'
+        startIdleMaskAnimation()
+        onDone?.()
       },
     })
 
     tl.fromTo(
       cardRef.current,
       { rotate: direction * 0.34, scale: 0.992 },
-      { rotate: 0, scale: 1, duration: 0.9, ease: 'sine.out' },
+      { rotate: 0, scale: 1, duration: cardInDuration, ease: 'sine.out' },
       0,
     )
       .fromTo(
         helmetRef.current,
         {
-          autoAlpha: 0,
+          autoAlpha: 0.001,
           x: direction * 170,
           y: 10,
-          scale: 1.09,
-          rotate: direction * 7,
+          scale: 1.05,
+          rotate: direction * 1.8,
         },
         {
           autoAlpha: 1,
@@ -230,10 +486,10 @@ function App() {
           y: 0,
           scale: 1,
           rotate: 0,
-          duration: 1.08,
+          duration: helmetInDuration,
           ease: 'power3.out',
         },
-        0.06,
+        rapidMode ? 0 : 0.03,
       )
       .fromTo(
         [copyRef.current, footerRef.current],
@@ -242,52 +498,83 @@ function App() {
           autoAlpha: 1,
           x: 0,
           y: 0,
-          duration: 0.82,
-          stagger: 0.07,
+          duration: copyInDuration,
+          stagger: rapidMode ? 0.04 : 0.07,
           ease: 'power3.out',
         },
-        0.16,
+        rapidMode ? 0.08 : 0.16,
       )
       .fromTo(
         [menuRef.current, dotsRef.current],
         { autoAlpha: 0, x: direction * 18 },
-        { autoAlpha: 1, x: 0, duration: 0.66, stagger: 0.05 },
-        0.22,
+        { autoAlpha: 1, x: 0, duration: rapidMode ? 0.32 : 0.56, stagger: 0.05 },
+        rapidMode ? 0.08 : 0.16,
       )
       .fromTo(
         washRef.current,
         { autoAlpha: 0, scale: 0.82 },
-        { autoAlpha: 0.38, scale: 1.08, duration: 0.52, ease: 'sine.out' },
-        0.08,
+        {
+          autoAlpha: rapidMode ? 0.28 : 0.38,
+          scale: rapidMode ? 1.04 : 1.08,
+          duration: rapidMode ? 0.24 : 0.46,
+          ease: 'sine.out',
+        },
+        rapidMode ? 0 : 0.06,
       )
-      .to(washRef.current, { autoAlpha: 0, duration: 0.56, ease: 'sine.in' }, 0.36)
+      .to(
+        washRef.current,
+        { autoAlpha: 0, duration: rapidMode ? 0.22 : 0.5, ease: 'sine.in' },
+        rapidMode ? 0.14 : 0.3,
+      )
 
     timelineRef.current = tl
   }
 
   useLayoutEffect(() => {
-    playEnterAnimation(directionRef.current)
+    const runId = enterRunRef.current + 1
+    enterRunRef.current = runId
+    isTransitioningRef.current = true
+    transitionPhaseRef.current = 'enter-prep'
+    stopIdleMaskAnimation(false)
+    killMotionTweens()
+    timelineRef.current?.kill()
+
+    let cancelled = false
+    ensureHelmetReady(activeIndex).finally(() => {
+      if (cancelled || enterRunRef.current !== runId) {
+        return
+      }
+
+      requestAnimationFrame(() => {
+        if (cancelled || enterRunRef.current !== runId) {
+          return
+        }
+        playEnterAnimation(directionRef.current, () => {
+          processSwitchQueue({ rapid: true })
+        })
+      })
+    })
 
     return () => {
-      timelineRef.current?.kill()
+      cancelled = true
     }
   }, [activeIndex])
 
-  const switchHelmet = (direction, options = {}) => {
-    if (isAnimating) {
-      return
-    }
-
-    const { fromDrag = false, dragDistance = 0 } = options
-    const nextIndex = (activeIndex + direction + helmets.length) % helmets.length
+  const runExitTransition = (direction, options = {}) => {
+    const { fromDrag = false, dragDistance = 0, rapid = false } = options
+    const nextIndex = (activeIndexRef.current + direction + helmets.length) % helmets.length
     const nextHelmet = helmets[nextIndex]
+    const cardWidth = cardRef.current?.clientWidth ?? 1280
     const dragFactor = Math.min(Math.abs(dragDistance) / 260, 1)
-    const exitDuration = fromDrag ? 0.26 : 0.34
-    const exitDistance = (fromDrag ? 180 : 220) + dragFactor * 85
-    const switchAt = exitDuration * 0.92
+    const exitDuration = fromDrag ? 0.22 : rapid ? 0.18 : 0.26
+    const baseExit = Math.max(cardWidth * 0.4, fromDrag ? 240 : rapid ? 290 : 320)
+    const exitDistance = baseExit + dragFactor * 90
 
+    killMotionTweens()
+    stopIdleMaskAnimation(false)
     directionRef.current = direction
-    setIsAnimating(true)
+    isTransitioningRef.current = true
+    transitionPhaseRef.current = 'exit'
     timelineRef.current?.kill()
 
     let switched = false
@@ -296,22 +583,31 @@ function App() {
         return
       }
       switched = true
-      setActiveIndex(nextIndex)
+      if (readyIndexSetRef.current.has(nextIndex)) {
+        activeIndexRef.current = nextIndex
+        setActiveIndex(nextIndex)
+        return
+      }
+
+      ensureHelmetReady(nextIndex).then(() => {
+        activeIndexRef.current = nextIndex
+        setActiveIndex(nextIndex)
+      })
     }
 
     const tl = gsap.timeline({
-      defaults: { ease: 'power2.inOut', overwrite: 'auto' },
+      defaults: { ease: 'power2.inOut', overwrite: 'auto', lazy: false, force3D: false },
       onComplete: commitSwitch,
     })
 
     tl.to(
       helmetRef.current,
       {
-        autoAlpha: 0.18,
+        autoAlpha: 0.001,
         x: -direction * exitDistance,
         y: -6,
-        scale: 0.92,
-        rotate: -direction * 7,
+        scale: 0.93,
+        rotate: -direction * 2.2,
         duration: exitDuration,
         ease: 'power2.in',
       },
@@ -391,17 +687,38 @@ function App() {
         { autoAlpha: 0, duration: exitDuration * 0.52, ease: 'sine.in' },
         exitDuration * 0.34,
       )
-      .add(commitSwitch, switchAt)
 
     timelineRef.current = tl
   }
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (isAnimating) {
+  const switchHelmet = (direction, options = {}) => {
+    const normalizedDirection = direction < 0 ? -1 : 1
+
+    if (options.fromDrag) {
+      queuedSwitchRef.current = normalizedDirection
+      if (isTransitioningRef.current) {
+        requestRapidAdvance()
         return
       }
+      processSwitchQueue({
+        fromDrag: true,
+        dragDistance: options.dragDistance ?? 0,
+      })
+      return
+    }
 
+    if (isTransitioningRef.current) {
+      queuedSwitchRef.current = normalizedDirection
+      requestRapidAdvance()
+      return
+    }
+
+    queuedSwitchRef.current = normalizedDirection
+    processSwitchQueue()
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
       if (event.target instanceof HTMLElement) {
         const tag = event.target.tagName
         if (
@@ -427,10 +744,10 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isAnimating, activeIndex])
+  }, [])
 
   const handlePointerDown = (event) => {
-    if (isAnimating) {
+    if (isTransitioningRef.current) {
       return
     }
 
@@ -446,6 +763,7 @@ function App() {
     dragState.deltaX = 0
     dragState.deltaY = 0
 
+    stopIdleMaskAnimation(false)
     holderRef.current?.setPointerCapture?.(event.pointerId)
     gsap.set(holderRef.current, { cursor: 'grabbing' })
     gsap.to(parallaxRef.current, {
@@ -460,7 +778,11 @@ function App() {
 
   const handlePointerMove = (event) => {
     const dragState = dragStateRef.current
-    if (!dragState.active || dragState.pointerId !== event.pointerId || isAnimating) {
+    if (
+      !dragState.active ||
+      dragState.pointerId !== event.pointerId ||
+      isTransitioningRef.current
+    ) {
       return
     }
 
@@ -469,10 +791,25 @@ function App() {
 
     const dragX = dragState.deltaX
     const intensity = Math.min(Math.abs(dragX) / 220, 1)
+    const quick = quickFnsRef.current
+    if (quick) {
+      quick.helmetX(dragX * 0.45)
+      quick.helmetRotate(dragX * 0.016)
+      quick.helmetScale(1 + intensity * 0.045)
+      quick.copyX(dragX * 0.16)
+      quick.footerX(dragX * 0.16)
+      quick.menuX(dragX * 0.11)
+      quick.dotsX(dragX * 0.11)
+      quick.cardRotate(dragX * 0.008)
+      quick.cardScale(1 - Math.min(Math.abs(dragX) / 1700, 0.018))
+      quick.washAlpha(intensity * 0.48)
+      quick.washScale(0.94 + intensity * 0.95)
+      return
+    }
 
     gsap.to(helmetRef.current, {
       x: dragX * 0.45,
-      rotate: dragX * 0.03,
+      rotate: dragX * 0.016,
       scale: 1 + intensity * 0.045,
       duration: 0.14,
       ease: 'power2.out',
@@ -530,11 +867,11 @@ function App() {
       return
     }
 
-    resetDragVisuals()
+    resetDragVisuals(0.32, true)
   }
 
   const handleCardMouseMove = (event) => {
-    if (isAnimating || dragStateRef.current.active) {
+    if (isTransitioningRef.current || dragStateRef.current.active) {
       return
     }
 
@@ -547,11 +884,18 @@ function App() {
     const yRatio = (event.clientY - cardBounds.top) / cardBounds.height - 0.5
     const offsetX = xRatio * 30
     const offsetY = yRatio * 24
+    const quick = quickFnsRef.current
+    if (quick) {
+      quick.parallaxX(offsetX)
+      quick.parallaxY(offsetY)
+      quick.parallaxRotate(xRatio * 2)
+      return
+    }
 
     gsap.to(parallaxRef.current, {
       x: offsetX,
       y: offsetY,
-      rotate: xRatio * 3.1,
+      rotate: xRatio * 2,
       duration: 0.36,
       ease: 'power2.out',
       overwrite: true,
@@ -560,6 +904,14 @@ function App() {
 
   const handleCardMouseLeave = () => {
     if (dragStateRef.current.active) {
+      return
+    }
+
+    const quick = quickFnsRef.current
+    if (quick) {
+      quick.parallaxX(0)
+      quick.parallaxY(0)
+      quick.parallaxRotate(0)
       return
     }
 
@@ -646,7 +998,15 @@ function App() {
           onLostPointerCapture={handlePointerEnd}
         >
           <div ref={parallaxRef} className="helmet-parallax">
-            <img ref={helmetRef} src={activeHelmet.image} alt={activeHelmet.alt} loading="eager" />
+            <img
+              ref={helmetRef}
+              src={activeHelmet.image}
+              alt={activeHelmet.alt}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+              draggable="false"
+            />
           </div>
         </figure>
 
@@ -665,7 +1025,6 @@ function App() {
             className="nav-btn nav-btn-prev"
             onClick={() => switchHelmet(-1)}
             aria-label="Show previous helmet"
-            disabled={isAnimating}
           >
             <span className="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24">
@@ -679,7 +1038,6 @@ function App() {
             className="nav-btn nav-btn-next"
             onClick={() => switchHelmet(1)}
             aria-label="Show next helmet"
-            disabled={isAnimating}
           >
             <span className="nav-label">Next</span>
             <span className="nav-icon" aria-hidden="true">

@@ -13,24 +13,24 @@
   height: calc(100dvh - clamp(1.1rem, 2.8vw, 2.2rem));
   width: 100%;
   overflow: hidden;
-  contain: layout paint;
+  contain: layout;
   touch-action: pan-y;
   user-select: none;
   border-radius: clamp(1.15rem, 2.2vw, 2rem);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
     radial-gradient(
-      circle at 50% 49%,
-      rgba(255, 255, 255, 0.035) 0%,
-      var(--helmet-halo) 10%,
-      rgba(255, 255, 255, 0.01) 22%,
-      transparent 36%
+      circle at 50% 52%,
+      rgba(255, 255, 255, 0.085) 0%,
+      var(--helmet-halo) 18%,
+      rgba(255, 255, 255, 0.03) 34%,
+      transparent 58%
     ),
     radial-gradient(
-      ellipse at 50% 50%,
-      rgba(25, 13, 48, 0.2) 0%,
-      rgba(25, 13, 48, 0.09) 26%,
-      transparent 46%
+      circle at 50% 52%,
+      rgba(24, 13, 47, 0.2) 0%,
+      rgba(24, 13, 47, 0.1) 38%,
+      transparent 66%
     ),
     linear-gradient(
       148deg,
@@ -75,28 +75,27 @@
   content: "";
   position: absolute;
   left: 50%;
-  top: 50%;
+  top: 52%;
   z-index: 2;
-  width: min(58vw, 860px);
+  width: min(78vw, 1180px);
   aspect-ratio: 1;
-  transform: translate3d(-50%, -50%, 0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  transform: translate(-50%, -50%);
   pointer-events: none;
-  opacity: 0.32;
+  opacity: 0.5;
   mix-blend-mode: normal;
   background:
     radial-gradient(
-      circle,
+      circle at 50% 52%,
       var(--helmet-halo) 0%,
-      rgba(255, 255, 255, 0.02) 18%,
-      transparent 46%
+      rgba(255, 255, 255, 0.08) 22%,
+      rgba(255, 255, 255, 0.022) 42%,
+      transparent 74%
     ),
     radial-gradient(
-      ellipse at 58% 42%,
-      rgba(255, 255, 255, 0.03) 0%,
-      rgba(255, 255, 255, 0.008) 28%,
-      transparent 50%
+      circle at 58% 44%,
+      rgba(255, 255, 255, 0.052) 0%,
+      rgba(255, 255, 255, 0.01) 34%,
+      transparent 64%
     );
   filter: none;
 }
@@ -274,26 +273,43 @@
 }
 
 .helmet-parallax {
+  position: relative;
   will-change: transform;
   display: grid;
   place-items: center;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+}
+
+.helmet-parallax::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  z-index: -1;
+  width: min(52vw, 780px);
+  height: min(10vw, 144px);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.42) 0%,
+    rgba(0, 0, 0, 0.24) 42%,
+    rgba(0, 0, 0, 0.08) 68%,
+    transparent 100%
+  );
+  filter: blur(12px);
 }
 
 .helmet-parallax img {
+  display: block;
   width: min(92vw, 1620px);
   max-width: 100%;
   max-height: 99vh;
   object-fit: contain;
   -webkit-user-drag: none;
   user-select: none;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  filter: drop-shadow(0 2.8rem 3.9rem rgba(0, 0, 0, 0.72))
-    drop-shadow(0 0 3.4rem var(--helmet-accent));
+  contain: paint;
+  image-rendering: auto;
 }
 
 .card-footer {
@@ -358,22 +374,22 @@
 .motion-wash {
   position: absolute;
   left: 50%;
-  top: 48%;
+  top: 52%;
   z-index: 5;
-  width: min(60vw, 820px);
+  width: min(78vw, 1060px);
   aspect-ratio: 1;
   border-radius: 999px;
   pointer-events: none;
-  transform: translate3d(-50%, -50%, 0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  transform: translate(-50%, -50%);
   opacity: 0;
-  background: radial-gradient(
-    circle,
-    rgba(255, 245, 255, 0.35) 0%,
-    rgba(255, 245, 255, 0.04) 45%,
-    transparent 68%
-  );
+  background:
+    radial-gradient(
+      circle at 50% 52%,
+      rgba(255, 245, 255, 0.42) 0%,
+      rgba(255, 245, 255, 0.12) 24%,
+      rgba(255, 245, 255, 0.03) 46%,
+      transparent 72%
+    );
   mix-blend-mode: normal;
 }
 
@@ -516,8 +532,8 @@
 
 @media (max-width: 1180px) {
   .hero-card::after {
-    width: min(70vw, 700px);
-    opacity: 0.3;
+    width: min(88vw, 980px);
+    opacity: 0.46;
   }
 
   .card-header {
@@ -589,12 +605,12 @@
 
 @media (max-width: 760px) {
   .helmet-holder {
-    top: 48.2%;
+    top: 46.6%;
   }
 
   .hero-card::after {
-    width: min(92vw, 520px);
-    opacity: 0.24;
+    width: min(120vw, 760px);
+    opacity: 0.38;
   }
 
   .hero-stage {
@@ -634,7 +650,7 @@
   .card-copy {
     left: 0.72rem;
     bottom: 5.55rem;
-    max-width: 96%;
+    max-width: 92%;
   }
 
   .card-copy h1 {
@@ -646,58 +662,63 @@
   }
 
   .helmet-parallax img {
-    width: min(174vw, 1120px);
-    max-height: 66vh;
+    width: min(184vw, 1220px);
+    max-height: 75vh;
   }
 
   .card-footer {
     right: 0.72rem;
-    bottom: 3.35rem;
+    bottom: 2.9rem;
     gap: 0.9rem;
   }
 
   .card-controls {
-    width: calc(100% - 1.44rem);
-    left: 0.72rem;
-    transform: none;
+    left: 0;
+    right: 0;
+    width: 100%;
+    top: 53%;
+    bottom: auto;
+    transform: translateY(-50%);
     justify-content: space-between;
-    bottom: 0.56rem;
-    gap: 0.42rem;
+    padding-inline: 0.58rem;
+    gap: 0.36rem;
+    pointer-events: none;
   }
 
   .nav-btn {
-    min-width: 46%;
-    padding: 0.42rem 0.48rem;
+    pointer-events: auto;
+    width: 2.72rem;
+    height: 2.72rem;
+    min-width: 0;
+    padding: 0;
   }
 
   .nav-btn-prev {
-    padding-left: 0.4rem;
-    padding-right: 0.56rem;
+    padding: 0;
   }
 
   .nav-btn-next {
-    padding-left: 0.56rem;
-    padding-right: 0.4rem;
+    padding: 0;
   }
 
   .nav-icon {
-    width: 1.84rem;
-    height: 1.84rem;
+    width: 100%;
+    height: 100%;
   }
 
   .nav-label {
-    font-size: 0.78rem;
+    display: none;
   }
 }
 
 @media (max-width: 560px) {
   .helmet-holder {
-    top: 48.4%;
+    top: 46.8%;
   }
 
   .hero-card::after {
-    width: min(112vw, 460px);
-    opacity: 0.2;
+    width: min(136vw, 700px);
+    opacity: 0.34;
   }
 
   .hero-stage {
@@ -731,8 +752,8 @@
   }
 
   .helmet-parallax img {
-    width: min(198vw, 980px);
-    max-height: 59vh;
+    width: min(206vw, 1140px);
+    max-height: 73vh;
   }
 
   .card-footer {
@@ -744,9 +765,13 @@
   }
 
   .card-controls {
-    width: calc(100% - 1.36rem);
-    left: 0.68rem;
-    bottom: 0.44rem;
+    top: 54%;
+    padding-inline: 0.42rem;
+  }
+
+  .nav-btn {
+    width: 2.48rem;
+    height: 2.48rem;
   }
 }
 
@@ -764,12 +789,18 @@
   }
 
   .helmet-parallax img {
-    width: min(214vw, 900px);
+    width: min(220vw, 1020px);
+    max-height: 70vh;
   }
 
-  .nav-label {
-    letter-spacing: 0.07em;
-    font-size: 0.74rem;
+  .nav-btn {
+    width: 2.3rem;
+    height: 2.3rem;
+  }
+
+  .nav-icon svg {
+    width: 0.9rem;
+    height: 0.9rem;
   }
 }
 
@@ -813,8 +844,8 @@
   }
 
   .helmet-parallax img {
-    width: min(76vw, 980px);
-    max-height: 74vh;
+    width: min(84vw, 1080px);
+    max-height: 77vh;
   }
 
   .card-footer {
@@ -823,6 +854,13 @@
   }
 
   .card-controls {
+    top: auto;
+    left: 50%;
+    right: auto;
+    width: auto;
+    transform: translateX(-50%);
     bottom: 0.45rem;
+    padding-inline: 0;
+    pointer-events: auto;
   }
 }
