@@ -287,24 +287,7 @@
 }
 
 .helmet-parallax::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 9%;
-  z-index: -1;
-  width: min(52vw, 780px);
-  height: min(10vw, 144px);
-  transform: translateX(-50%);
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(0, 0, 0, 0.42) 0%,
-    rgba(0, 0, 0, 0.24) 42%,
-    rgba(0, 0, 0, 0.08) 68%,
-    transparent 100%
-  );
-  filter: blur(12px);
+  display: none;
 }
 
 .helmet-parallax img {
